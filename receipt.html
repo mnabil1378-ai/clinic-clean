@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>🧾 إيصال الحجز</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      direction: rtl;
+      margin: 40px;
+      background-color: #f9f9f9;
+    }
+    .receipt {
+      background: #fff;
+      padding: 20px;
+      border: 2px dashed #333;
+      max-width: 500px;
+      margin: auto;
+      text-align: right;
+    }
+    h2 {
+      text-align: center;
+      color: #007bff;
+    }
+    .info {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #218838;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="receipt">
+    <h2>🧾 إيصال الحجز</h2>
+    <div class="info" id="receipt-content">
+      <!-- سيتم تعبئة البيانات هنا -->
+    </div>
+    <button onclick="window.print()">🖨️ طباعة الإيصال</button>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+
+    fetch(`/patient-visits/${phone}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.length === 0) {
+          document.getElementById('receipt-content').innerHTML = '❌ لا يوجد حجز لهذا الرقم.';
+          return;
+        }
+
+        const latest = data[data.length - 1]; // آخر زيارة
+        const nameMatch = latest.match(/👶 الاسم: (.+)/);
+        const dateMatch = latest.match(/📅 تاريخ الحجز: (.+)/);
+        const timeMatch = latest.match(/⏰ الوقت: (.+)/);
+        const priceMatch = latest.match(/💰 قيمة الكشف: (.+)/);
+
+        const name = nameMatch ? nameMatch[1] : '';
+        const date = dateMatch ? dateMatch[1] : '';
+        const time = timeMatch ? timeMatch[1] : '';
+        const price = priceMatch ? priceMatch[1] : '';
+
+        document.getElementById('receipt-content').innerHTML = `
+          👶 <strong>الاسم:</strong> ${name}<br>
+          📞 <strong>رقم الهاتف:</strong> ${phone}<br>
+          📅 <strong>تاريخ الحجز:</strong> ${date}<br>
+          ⏰ <strong>الوقت:</strong> ${time}<br>
+          💰 <strong>قيمة الكشف:</strong> ${price}<br>
+          🏥 <strong>العيادة:</strong> د. [اسم الطبيبة]
+        `;
+      });
+  </script>
+
+</body>
+</html>

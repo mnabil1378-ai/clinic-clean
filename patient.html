@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ملف المريض</title>
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background-color: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 12px;
+      text-align: center;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    textarea {
+      resize: none;
+    }
+    .highlight {
+      background-color: #d4edda;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>📁 ملف المريض - سجل الزيارات</h2>
+
+  <button onclick="downloadPDF()" style="margin: 10px; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 6px;">📄 حفظ كـ PDF</button>
+
+  <div id="patient-info"></div>
+
+  <input type="text" id="searchInput" placeholder="🔍 ابحث داخل الزيارات..." onkeyup="filterTable()">
+
+  <table id="visits-table">
+    <thead>
+      <tr>
+        <th>📅 التاريخ</th>
+        <th>⏰ الوقت</th>
+        <th>💰 قيمة الكشف</th>
+        <th>📝 ملاحظات الطبيب</th>
+        <th>✍️ إضافة ملاحظة جديدة</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+
+    fetch(`/patient-visits/${phone}`)
+      .then(res => res.json())
+      .then(data => {
+        const tableBody = document.querySelector("#visits-table tbody");
+        const infoDiv = document.getElementById("patient-info");
+        tableBody.innerHTML = "";
+
+        data.forEach(entry => {
+          const lines = entry.split('\n');
+          const name = lines.find(l => l.includes("👶 الاسم")).split(":")[1].trim();
+          const date = lines.find(l => l.includes("📅 تاريخ الحجز")).split(":")[1].trim();
+          const time = lines.find(l => l.includes("⏰ الوقت")).split(":")[1].trim();
+          const price = lines.find(l => l.includes("💰 قيمة الكشف")).split(":")[1].trim();
+          const noteLine = lines.find(l => l.includes("📝 ملاحظة الطبيب"));
+          const note = noteLine ? noteLine.split(":")[1].trim() : '';
+
+          const row = document.createElement("tr");
+
+          const hasNote = note && note.trim() !== '—' && note.trim() !== '';
+
+          row.innerHTML = `
+            <td>${date}</td>
+            <td>${time}</td>
+            <td>${price}</td>
+            <td style="background-color: ${hasNote ? '#d4edda' : 'transparent'}">${note || '—'}</td>
+            <td>
+              <textarea placeholder="اكتب هنا ملاحظة الطبيب..." rows="2" style="width:100%"></textarea>
+              <button onclick="saveNote('${date}', this)">💾 حفظ</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+
+          // عرض اسم ورقم المريض مرة واحدة فقط
+          if (!infoDiv.innerHTML) {
+            infoDiv.innerHTML = `<p>📛 الاسم: ${name}</p><p>📞 رقم الهاتف: ${phone}</p>`;
+          }
+        });
+      });
+
+    function saveNote(date, btn) {
+      const note = btn.previousElementSibling.value;
+      if (!note.trim()) return alert("❗ من فضلك أدخل الملاحظة أولًا");
+
+      fetch('/save-note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, date, note })
+      })
+      .then(res => res.text())
+      .then(msg => {
+        alert(msg);
+        location.reload();
+      });
+    }
+
+    function downloadPDF() {
+      const printContents = document.body.innerHTML;
+      const original = document.body.innerHTML;
+      document.body.innerHTML = printContents;
+      window.print();
+      document.body.innerHTML = original;
+      location.reload();
+    }
+
+    function filterTable() {
+      const input = document.getElementById("searchInput").value.toLowerCase();
+      const rows = document.querySelectorAll("#visits-table tbody tr");
+
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(input) ? "" : "none";
+      });
+    }
+  </script>
+</body>
+</html>

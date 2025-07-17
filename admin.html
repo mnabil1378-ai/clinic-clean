@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة إدارة الحجوزات</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; padding: 20px; background-color: #f9f9f9; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background-color: #007bff; color: white; }
+    button { margin: 2px; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; }
+    .edit-btn { background-color: #ffc107; color: white; }
+    .delete-btn { background-color: #dc3545; color: white; }
+    .print-btn { background-color: #28a745; color: white; }
+    .whatsapp-btn { background-color: #25d366; color: white; }
+  </style>
+</head>
+<body>
+
+  <h2>📋 لوحة إدارة الحجوزات</h2>
+
+  <!-- 🔍 فلترة البحث -->
+  <input type="text" id="searchInput" placeholder="🔍 ابحث بالاسم أو الهاتف أو التاريخ..." oninput="filterTable()" style="margin: 10px; padding: 8px; width: 300px;">
+
+  <table id="bookings-table">
+    <thead>
+      <tr>
+        <th>👶 الاسم</th>
+        <th>📞 الهاتف</th>
+        <th>📅 التاريخ</th>
+        <th>⏰ الوقت</th>
+        <th>💰 السعر</th>
+        <th>📝 الملاحظة</th>
+        <th>✏️ تعديل</th>
+        <th>🗑️ حذف</th>
+        <th>🖨️ طباعة</th>
+        <th>📱 واتساب</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+// ✅ تحميل البيانات من السيرفر
+fetch('/patient-visits/all')
+  .then(res => res.json())
+  .then(data => {
+    const tbody = document.querySelector('#bookings-table tbody');
+    data.forEach(entry => {
+      const nameMatch = entry.match(/👶 الاسم: (.*)/);
+      const phoneMatch = entry.match(/📞 رقم الهاتف: (.*)/);
+      const dateMatch = entry.match(/📅 تاريخ الحجز: (.*)/);
+      const timeMatch = entry.match(/⏰ الوقت: (.*)/);
+      const priceMatch = entry.match(/💰 قيمة الكشف: (.*)/);
+      const noteMatch = entry.match(/📝 ملاحظة الطبيب: ?(.*)?/);
+
+      const name = nameMatch ? nameMatch[1] : '';
+      const phone = phoneMatch ? phoneMatch[1] : '';
+      const date = dateMatch ? dateMatch[1] : '';
+      const time = timeMatch ? timeMatch[1] : '';
+      const price = priceMatch ? priceMatch[1] : '';
+      const note = noteMatch ? noteMatch[1] : '';
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${name}</td>
+        <td>${phone}</td>
+        <td>${date}</td>
+        <td>${time}</td>
+        <td>${price}</td>
+        <td>${note || '—'}</td>
+        <td><button class="edit-btn" onclick="editRow(this)">تعديل</button></td>
+        <td><button class="delete-btn" onclick="deleteRow(this)">حذف</button></td>
+        <td><button class="print-btn" onclick="printRow(this)">طباعة</button></td>
+        <td><button class="whatsapp-btn" onclick="sendWhatsApp(this)">واتساب</button></td>
+      `;
+      tbody.appendChild(row);
+    });
+  });
+
+function editRow(btn) {
+  const row = btn.parentElement.parentElement;
+  const tds = row.querySelectorAll('td');
+  const oldPhone = tds[1].innerText;
+  const oldDate = tds[2].innerText;
+
+  const newName = prompt("الاسم الجديد", tds[0].innerText);
+  const newPhone = prompt("رقم الهاتف الجديد", tds[1].innerText);
+  const newDate = prompt("تاريخ الحجز الجديد", tds[2].innerText);
+  const newTime = prompt("الوقت الجديد", tds[3].innerText);
+
+  fetch('/edit-booking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oldPhone, oldDate, newName, newPhone, newDate, newTime })
+  })
+  .then(res => res.text())
+  .then(msg => {
+    alert(msg);
+    location.reload();
+  });
+}
+
+function deleteRow(btn) {
+  const row = btn.parentElement.parentElement;
+  const phone = row.children[1].innerText;
+  const date = row.children[2].innerText;
+
+  if (confirm("هل أنت متأكد من الحذف؟")) {
+    fetch('/delete-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, date })
+    })
+    .then(res => res.text())
+    .then(msg => {
+      alert(msg);
+      location.reload();
+    });
+  }
+}
+
+function printRow(btn) {
+  const row = btn.parentElement.parentElement;
+  const cells = row.querySelectorAll('td');
+  const content = `
+    <h2>إيصال الحجز</h2>
+    <p>👶 الاسم: ${cells[0].innerText}</p>
+    <p>📞 الهاتف: ${cells[1].innerText}</p>
+    <p>📅 التاريخ: ${cells[2].innerText}</p>
+    <p>⏰ الوقت: ${cells[3].innerText}</p>
+    <p>💰 السعر: ${cells[4].innerText}</p>
+  `;
+  const printWin = window.open('', '', 'width=600,height=400');
+  printWin.document.write(content);
+  printWin.print();
+  printWin.close();
+}
+
+function sendWhatsApp(btn) {
+  const row = btn.parentElement.parentElement;
+  const name = row.children[0].innerText;
+  const phone = row.children[1].innerText;
+  const date = row.children[2].innerText;
+  const time = row.children[3].innerText;
+
+  const message = `مرحبًا ${name}%0aتم تأكيد حجزك بتاريخ ${date} في تمام ${time}.%0aنراك على خير إن شاء الله.`;
+  const url = `https://wa.me/2${phone}?text=${message}`;
+  window.open(url, '_blank');
+}
+
+function filterTable() {
+  const input = document.getElementById("searchInput").value.trim().toLowerCase();
+  const rows = document.querySelectorAll("#bookings-table tbody tr");
+
+  rows.forEach(row => {
+    const text = row.innerText.replace(/\s+/g, ' ').toLowerCase();
+    row.style.display = text.includes(input) ? '' : 'none';
+  });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 لوحة الإحصائيات - العيادة</title>
+  <style>
+    body { font-family: 'Cairo', sans-serif; background-color: #f8f9fa; padding: 20px; text-align: center; }
+    h1 { color: #007bff; }
+    .card {
+      display: inline-block;
+      margin: 20px;
+      padding: 30px;
+      width: 250px;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .card h2 { margin: 0; font-size: 2.5em; color: #28a745; }
+    .card p { font-size: 1.2em; color: #333; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>📊 لوحة إحصائيات العيادة</h1>
+
+  <div id="stats">
+    <div class="card">
+      <h2 id="total-visits">0</h2>
+      <p>إجمالي عدد الزيارات</p>
+    </div>
+
+    <div class="card">
+      <h2 id="total-income">0</h2>
+      <p>إجمالي الإيرادات</p>
+    </div>
+
+    <div class="card">
+      <h2 id="today-visits">0</h2>
+      <p>زيارات اليوم</p>
+    </div>
+  </div>
+
+  <script>
+    fetch('/stats')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('total-visits').textContent = data.totalVisits;
+        document.getElementById('total-income').textContent = data.totalIncome + ' جنيه';
+        document.getElementById('today-visits').textContent = data.todayVisits;
+      })
+      .catch(err => console.error('❌ خطأ في تحميل البيانات:', err));
+  </script>
+</body>
+</html>
