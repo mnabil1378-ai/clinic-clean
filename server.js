@@ -1,155 +1,233 @@
-const express = require('express');
-const fs = require('fs');
+const express = require("express");
+const session = require("express-session");
+const fs = require("fs");
+const path = require("path");
+
 const app = express();
-const port = 3000;
+const PORT = 3000;
 
-app.use(express.urlencoded({ extended: true }));
+const bookingsFile = path.join(__dirname, "data", "bookings.txt");
+const notesDir = path.join(__dirname, "notes");
+if (!fs.existsSync(notesDir)) {
+  fs.mkdirSync(notesDir);
+}
+
+app.use(express.static("public"));
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.urlencoded({ extended: true }));
 
-// ✅ استلام بيانات الحجز
-app.post('/submit-booking', (req, res) => {
+app.use(
+  session({
+    secret: "clinic_secret_key",
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+
+// إنشاء مجلد data إذا لم يكن موجودًا
+if (!fs.existsSync(path.join(__dirname, "data"))) {
+  fs.mkdirSync(path.join(__dirname, "data"));
+}
+
+// إنشاء ملف bookings.txt إذا لم يكن موجودًا
+if (!fs.existsSync(bookingsFile)) {
+  fs.writeFileSync(bookingsFile, "");
+}
+
+// حفظ حجز جديد مع التحقق من التكرار
+app.post("/submit-booking", (req, res) => {
   const { name, phone, date, time } = req.body;
+  const price = "150 جنيه";
+  const note = "";
 
-  const bookingDetails = `
-==========================
-✅ تم استلام حجز جديد:
-👶 الاسم: ${name}
-📞 رقم الهاتف: ${phone}
-📅 تاريخ الحجز: ${date}
-⏰ الوقت: ${time}
-💰 قيمة الكشف: 150 جنيه
-==========================\n`;
+  const booking = { name, phone, date, time, price, note };
+  const line = JSON.stringify(booking) + "\n";
 
-  fs.appendFile('bookings.txt', bookingDetails, err => {
-    if (err) return res.status(500).send("❌ خطأ أثناء حفظ الحجز");
-    res.send("✅ تم استلام بيانات الحجز بنجاح!");
-  });
-});
+  fs.readFile(bookingsFile, "utf8", (err, data) => {
+    if (err) return res.status(500).json({ success: false, message: "خطأ في قراءة الملف" });
 
-// ✅ عرض سجل زيارات مريض بناء على رقم الهاتف
-app.get('/patient-visits/:phone', (req, res) => {
-  const phone = req.params.phone;
-
-  fs.readFile('bookings.txt', 'utf8', (err, data) => {
-    if (err) return res.status(500).send('❌ خطأ أثناء قراءة الملف');
-
-    const entries = data
-      .split('==========================')
-      .map(entry => entry.trim())
-      .filter(entry => entry.includes(`📞 رقم الهاتف: ${phone}`));
-
-    res.json(entries);
-  });
-});
-
-// ✅ عرض كل الحجوزات للإدارة (تصفية الحجوزات فقط)
-app.get('/patient-visits/all', (req, res) => {
-  fs.readFile('bookings.txt', 'utf8', (err, data) => {
-    if (err) return res.status(500).send('❌ خطأ أثناء قراءة الملف');
-
-    const entries = data
-      .split('==========================')
-      .map(entry => entry.trim())
-      .filter(entry =>
-        entry.includes("👶 الاسم:") &&
-        entry.includes("📞 رقم الهاتف:") &&
-        entry.includes("📅 تاريخ الحجز:") &&
-        entry.includes("⏰ الوقت:") &&
-        entry.includes("💰 قيمة الكشف")
-      );
-
-    res.json(entries);
-  });
-});
-
-// ✅ حفظ ملاحظة الطبيب
-app.post('/save-note', (req, res) => {
-  const { phone, date, note } = req.body;
-
-  fs.readFile('bookings.txt', 'utf8', (err, data) => {
-    if (err) return res.status(500).send('❌ خطأ أثناء قراءة الملف');
-
-    const sections = data.split('==========================');
-    const updatedSections = sections.map(section => {
-      if (
-        section.includes(`📞 رقم الهاتف: ${phone}`) &&
-        section.includes(`📅 تاريخ الحجز: ${date}`)
-      ) {
-        section = section.replace(/📝 ملاحظة الطبيب:.*(\n)?/, '');
-        return section.trim() + `\n📝 ملاحظة الطبيب: ${note}\n`;
+    const existingBookings = data.trim().split("\n").filter(Boolean).map(line => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
       }
-      return section;
-    });
+    }).filter(b => b);
 
-    const finalData = updatedSections
-      .map(entry => '==========================\n' + entry.trim() + '\n==========================')
-      .join('\n');
+    const isDuplicate = existingBookings.some(b => b.phone === phone && b.date === date);
+    if (isDuplicate) {
+      return res.json({ success: false, message: "❌ الحجز مكرر بالفعل" });
+    }
 
-    fs.writeFile('bookings.txt', finalData, err => {
-      if (err) return res.status(500).send('❌ خطأ أثناء حفظ الملاحظة');
-      res.send('✅ تم حفظ الملاحظة بنجاح!');
-    });
-  });
-});
+    fs.appendFile(bookingsFile, line, (err) => {
+      if (err) return res.status(500).json({ success: false, message: "حدث خطأ في الحفظ" });
 
-// ✅ تعديل بيانات حجز
-app.post('/edit-booking', (req, res) => {
-  const { oldPhone, oldDate, newName, newPhone, newDate, newTime } = req.body;
-
-  fs.readFile('bookings.txt', 'utf8', (err, data) => {
-    if (err) return res.status(500).send('❌ خطأ أثناء قراءة الملف');
-
-    const entries = data.split('==========================');
-    const updatedEntries = entries.map(entry => {
-      if (entry.includes(`📞 رقم الهاتف: ${oldPhone}`) && entry.includes(`📅 تاريخ الحجز: ${oldDate}`)) {
-        return `
-✅ تم استلام حجز جديد:
-👶 الاسم: ${newName}
-📞 رقم الهاتف: ${newPhone}
-📅 تاريخ الحجز: ${newDate}
-⏰ الوقت: ${newTime}
-💰 قيمة الكشف: 150 جنيه
-`;
-      }
-      return entry;
-    });
-
-    const finalData = updatedEntries
-      .map(e => '==========================\n' + e.trim() + '\n==========================')
-      .join('\n');
-
-    fs.writeFile('bookings.txt', finalData, err => {
-      if (err) return res.status(500).send('❌ خطأ أثناء التعديل');
-      res.send('✅ تم تعديل الحجز بنجاح!');
+      return res.json({ success: true, message: "✅ تم حفظ الحجز بنجاح" });
     });
   });
 });
+app.post("/add-note", (req, res) => {
+  const { phone, note } = req.body;
+  const filePath = path.join(notesDir, `${phone}.txt`);
+  const line = `[${new Date().toLocaleString()}] ${note}\n`;
 
-// ✅ حذف حجز
-app.post('/delete-booking', (req, res) => {
+  fs.appendFile(filePath, line, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: "خطأ في حفظ الملاحظة" });
+    }
+    res.json({ success: true, message: "✅ تم حفظ الملاحظة" });
+  });
+});
+
+// حذف حجز
+app.post("/delete-booking", (req, res) => {
   const { phone, date } = req.body;
 
-  fs.readFile('bookings.txt', 'utf8', (err, data) => {
-    if (err) return res.status(500).send('❌ خطأ أثناء قراءة الملف');
+  fs.readFile(bookingsFile, "utf8", (err, data) => {
+    if (err) return res.json({ success: false, error: "خطأ في قراءة الملف" });
 
-    const entries = data.split('==========================');
-    const filteredEntries = entries.filter(entry => {
-      return !(entry.includes(`📞 رقم الهاتف: ${phone}`) && entry.includes(`📅 تاريخ الحجز: ${date}`));
+    const lines = data.trim().split("\n");
+    const filtered = lines.filter((line) => {
+      try {
+        const booking = JSON.parse(line);
+        return !(booking.phone === phone && booking.date === date);
+      } catch {
+        return true;
+      }
     });
 
-    const finalData = filteredEntries
-      .map(e => '==========================\n' + e.trim() + '\n==========================')
-      .join('\n');
-
-    fs.writeFile('bookings.txt', finalData, err => {
-      if (err) return res.status(500).send('❌ خطأ أثناء الحذف');
-      res.send('✅ تم حذف الحجز بنجاح!');
+    fs.writeFile(bookingsFile, filtered.join("\n") + "\n", (err) => {
+      if (err) return res.json({ success: false, error: "خطأ في الحذف" });
+      res.json({ success: true });
     });
   });
 });
 
-// ✅ تشغيل السيرفر
-app.listen(port, () => {
-  console.log(`🚀 Server is running at http://localhost:${port}`);
+// إظهار كل الحجوزات
+app.get("/patient-visits/all", (req, res) => {
+  fs.readFile(bookingsFile, "utf8", (err, data) => {
+    if (err) return res.status(500).send("خطأ في القراءة");
+
+    const lines = data.trim().split("\n");
+    const bookings = lines.map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter(b => b);
+
+    res.json(bookings);
+  });
+});
+app.post("/update-booking", (req, res) => {
+  const { old, updated } = req.body;
+
+  fs.readFile(bookingsFile, "utf8", (err, data) => {
+    if (err) return res.status(500).json({ success: false, message: "❌ خطأ في قراءة الملف" });
+
+    const lines = data.trim().split("\n").filter(Boolean);
+    const bookings = lines.map(line => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter(b => b);
+
+    const updatedList = bookings.map(b => {
+      return (b.phone === old.phone && b.date === old.date) ? {
+        ...updated,
+        price: b.price || "150 جنيه",
+        note: b.note || ""
+      } : b;
+    });
+
+    const newData = updatedList.map(b => JSON.stringify(b)).join("\n") + "\n";
+
+    fs.writeFile(bookingsFile, newData, (err) => {
+      if (err) return res.status(500).json({ success: false, message: "❌ خطأ في حفظ التعديل" });
+      res.json({ success: true, message: "✅ تم تعديل الحجز بنجاح" });
+    });
+  });
+});
+app.get("/get-notes/:phone", (req, res) => {
+  const phone = req.params.phone;
+  const filePath = path.join(notesDir, `${phone}.txt`);
+
+  fs.readFile(filePath, "utf8", (err, data) => {
+    if (err) {
+      // لو الملف مش موجود أو فاضي، نرجّع ملاحظات فارغة
+      return res.json({ success: true, notes: [] });
+    }
+
+    // فصل الملاحظات إلى سطور
+    const notesArray = data.trim().split("\n");
+    res.json({ success: true, notes: notesArray });
+  });
+});
+app.post("/update-note", (req, res) => {
+  const { phone, date, note } = req.body;
+
+  fs.readFile(bookingsFile, "utf8", (err, data) => {
+    if (err) return res.status(500).json({ success: false });
+
+    const lines = data.trim().split("\n");
+    const updated = lines.map((line) => {
+      try {
+        const booking = JSON.parse(line);
+        if (booking.phone === phone && booking.date === date) {
+          booking.note = note;
+        }
+        return JSON.stringify(booking);
+      } catch {
+        return line;
+      }
+    });
+
+    fs.writeFile(bookingsFile, updated.join("\n") + "\n", (err) => {
+      if (err) return res.status(500).json({ success: false });
+      res.json({ success: true });
+    });
+  });
+});
+// مسار لحساب إجمالي الإيرادات
+app.get("/total-revenue", (req, res) => {
+  fs.readFile(bookingsFile, "utf8", (err, data) => {
+    if (err) return res.status(500).json({ success: false, message: "خطأ في قراءة الملف" });
+
+    const lines = data.trim().split("\n");
+    let total = 0;
+
+    lines.forEach(line => {
+      try {
+        const booking = JSON.parse(line);
+        const price = parseInt(booking.price.replace(/[^\d]/g, ""));
+        total += isNaN(price) ? 0 : price;
+      } catch { }
+    });
+
+    res.json({ success: true, total });
+  });
+});
+app.get("/stats/revenue", (req, res) => {
+  fs.readFile(bookingsFile, "utf8", (err, data) => {
+    if (err) return res.status(500).json({ error: "خطأ في قراءة الملف" });
+
+    const lines = data.trim().split("\n");
+    const validBookings = lines.map(line => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter(b => b);
+
+    const totalRevenue = validBookings.length * 150; // 150 جنيه لكل حجز
+    res.json({ revenue: totalRevenue });
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ السيرفر يعمل على http://localhost:${PORT}`);
 });

@@ -48,11 +48,11 @@
     <form>
       <div class="mb-3">
         <label for="name" class="form-label">اسم الطفل</label>
-        <input type="text" class="form-control" id="name" placeholder="اكتب اسم الطفل بالكامل" required>
+        <input type="text" class="form-control" id="name" required>
       </div>
       <div class="mb-3">
         <label for="phone" class="form-label">رقم الهاتف</label>
-        <input type="tel" class="form-control" id="phone" placeholder="مثال: 01012345678" required>
+        <input type="tel" class="form-control" id="phone" required>
       </div>
       <div class="mb-3">
         <label for="date" class="form-label">تاريخ الحجز</label>
@@ -60,55 +60,45 @@
       </div>
       <div class="mb-3">
         <label for="time" class="form-label">الوقت</label>
-        <select class="form-control" id="time" required>
-          <option value="">اختر الوقت المناسب</option>
-          <option>10:00 مساءً</option>
-          <option>9:00 مساءً</option>
-          <option>8:00 مساءً</option>
-          <option>7:00 مساءً</option>
-          <option>6:00 مساءً</option>
-        </select>
+        <input type="time" class="form-control" id="time" required>
       </div>
+
       <div class="price-note">💰 قيمة الكشف: 150 جنيه</div>
+
       <div class="text-center mt-3">
         <button type="submit" class="btn btn-submit">تأكيد الحجز</button>
       </div>
     </form>
   </div>
 
-<script>
-  const form = document.querySelector('form');
+  <script>
+    const form = document.querySelector("form");
 
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
 
-    const name = document.getElementById('name').value;
-    const phone = document.getElementById('phone').value;
-    const date = document.getElementById('date').value;
-    const time = document.getElementById('time').value;
+      const name = document.getElementById("name").value;
+      const phone = document.getElementById("phone").value;
+      const date = document.getElementById("date").value;
+      const time = document.getElementById("time").value;
 
-    fetch("http://localhost:3000/submit-booking", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name,
-        phone,
-        date,
-        time
+      fetch("/submit-booking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, phone, date, time })
       })
-    })
-    .then(response => response.text())
-    .then(data => {
-      alert(data);
-      form.reset();
-    })
-    .catch(error => {
-      alert("حدث خطأ أثناء إرسال البيانات ❌");
-      console.error(error);
+      .then(response => response.text())
+      .then(data => {
+        alert(data);
+        form.reset();
+      })
+      .catch(error => {
+        alert("حدث خطأ أثناء إرسال البيانات ❌");
+        console.error(error);
+      });
     });
-  });
-</script>
+  </script>
 </body>
 </html>

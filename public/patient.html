@@ -68,6 +68,7 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const phone = urlParams.get('phone');
+loadNotes(phone); // تحميل الملاحظات عند فتح الصفحة
 
     fetch(`/patient-visits/${phone}`)
       .then(res => res.json())
@@ -123,6 +124,10 @@
         location.reload();
       });
     }
+<div class="form-section">
+  <h4>📂 سجل الملاحظات السابقة</h4>
+  <ul id="notes-list" class="list-group"></ul>
+</div>
 
     function downloadPDF() {
       const printContents = document.body.innerHTML;
@@ -142,6 +147,33 @@
         row.style.display = text.includes(input) ? "" : "none";
       });
     }
+    function loadNotes(phone) {
+  fetch(`/get-notes/${phone}`)
+    .then(res => res.json())
+    .then(data => {
+      const list = document.getElementById("notes-list");
+      list.innerHTML = "";
+
+      if (data.success && data.notes.length > 0) {
+        data.notes.forEach(note => {
+          const li = document.createElement("li");
+          li.textContent = note;
+          li.className = "list-group-item";
+          list.appendChild(li);
+        });
+      } else {
+        const li = document.createElement("li");
+        li.textContent = "لا توجد ملاحظات بعد.";
+        li.className = "list-group-item text-muted";
+        list.appendChild(li);
+      }
+    })
+    .catch(error => {
+      console.error("خطأ في تحميل الملاحظات:", error);
+    });
+}
+
   </script>
+
 </body>
 </html>

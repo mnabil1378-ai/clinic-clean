@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة تحكم الحجوزات</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+  <style>
+    body { direction: rtl; padding: 20px; background-color: #f8f9fa; }
+    .dark-mode { background-color: #1e1e1e !important; color: white; }
+    .dark-mode table { color: white; }
+    .form-section { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+    .dark-mode .form-section { background: #2c2c2c; }
+    table { background-color: white; }
+    .dark-mode table { background-color: #333; }
+    .form-control, .btn { margin-bottom: 10px; }
+  </style>
+</head>
+<body id="body">
+
+  <div class="container">
+    <h2 class="mb-4">📋 لوحة تحكم حجوزات العيادة</h2>
+<button id="toggle-dark-mode" class="btn btn-dark mb-3">🌙 الوضع الليلي</button>
+
+    <div class="form-section">
+      <h4>➕ حجز جديد</h4>
+      <form id="new-booking-form">
+        <input type="text" id="name" class="form-control" placeholder="👶 الاسم" required>
+        <input type="tel" id="phone" class="form-control" placeholder="📞 الهاتف" required>
+        <input type="date" id="date" class="form-control" required>
+        <input type="time" id="time" class="form-control" required>
+        <button type="submit" class="btn btn-success">💾 حفظ الحجز</button>
+      </form>
+    </div>
+
+    <div class="form-section">
+      <h4>📊 إحصائيات الحجوزات</h4>
+      <input type="text" id="search-stats" class="form-control" placeholder="🔍 ابحث في الإحصائيات...">
+      <p class="mt-2">📅 اليوم: <span id="today-count">0</span> | 📈 الأسبوع: <span id="week-count">0</span> | 🗓️ الشهر: <span id="month-count">0</span></p>
+      💰 إجمالي الإيرادات: <span id="total-revenue">0</span> جنيه
+    </div>
+
+    <div class="form-section">
+      <input type="text" id="search" class="form-control" placeholder="🔎 ابحث بالاسم أو الهاتف...">
+      <table class="table table-bordered table-striped mt-3">
+        <thead>
+  <tr>
+    <th>#</th>
+    <th>👶 الاسم</th>
+    <th>📞 الهاتف</th>
+    <th>📅 التاريخ</th>
+    <th>⏰ الوقت</th>
+    <th>📝 الملاحظة</th> <!-- ✅ العمود الجديد -->
+    <th>📥 نسخ</th>
+    <th>✏️ تعديل</th>
+    <th>🗑️ حذف</th>
+    <th>🖨️ طباعة</th>
+    <th>📱 واتساب</th>
+  </tr>
+</thead>
+
+        <tbody id="bookings-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+let allBookings = [];
+let editingBooking = null; // لحفظ بيانات الحجز الذي نعدّله
+
+function renderTable(data) {
+  const table = document.getElementById("bookings-table");
+  table.innerHTML = "";
+  data.forEach((booking, index) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>${booking.name}</td>
+      <td>${booking.phone}</td>
+      <td>${booking.date}</td>
+      <td>${booking.time}</td>
+      <td>
+  <input type="text" class="form-control form-control-sm" value="${booking.note || ""}" 
+    onchange="saveNote('${booking.phone}', '${booking.date}', this.value)">
+</td>
+
+      <td><button class="btn btn-secondary btn-sm" onclick='copyToForm(${JSON.stringify(booking)})'>📥</button></td>
+      <td><button class="btn btn-warning btn-sm" onclick='editBooking(${JSON.stringify(booking)})'>✏️</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick='deleteBooking("${booking.phone}", "${booking.date}")'>🗑️</button></td>
+      <td><button class="btn btn-info btn-sm" onclick='printBooking(${JSON.stringify(booking)})'>🖨️</button></td>
+      <td><a class="btn btn-success btn-sm" target="_blank" href="https://wa.me/+2${booking.phone}?text=مرحبًا ${booking.name}، تم تأكيد حجزك بتاريخ ${booking.date} الساعة ${booking.time}">📱</a></td>
+    `;
+    table.appendChild(row);
+  });
+}
+
+function copyToForm(booking) {
+  document.getElementById("name").value = booking.name;
+  document.getElementById("phone").value = booking.phone;
+  document.getElementById("date").value = booking.date;
+  document.getElementById("time").value = booking.time;
+}
+
+function editBooking(booking) {
+  editingBooking = booking; // حفظ بيانات الحجز القديم
+  copyToForm(booking);      // ملء الفورم بالبيانات
+  document.querySelector('#toggle-dark-mode')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+
+function deleteBooking(phone, date, callback) {
+  fetch('/delete-booking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, date })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      fetchData();
+      if (callback) callback();
+    } else {
+      alert("فشل في حذف الحجز");
+    }
+  });
+}
+function saveNote(phone, date, note) {
+  fetch('/update-note', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, date, note })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (!data.success) {
+      alert("❌ فشل في حفظ الملاحظة");
+    }
+  })
+  .catch(() => {
+    alert("❌ خطأ في الاتصال بالسيرفر");
+  });
+}
+
+function printBooking(booking) {
+  const content = `
+    👶 الاسم: ${booking.name}
+    📞 الهاتف: ${booking.phone}
+    📅 التاريخ: ${booking.date}
+    ⏰ الوقت: ${booking.time}
+    💰 قيمة الكشف: ${booking.price || '150 جنيه'}
+    📝 ملاحظة الطبيب: ${booking.note || '—'}
+  `;
+  const win = window.open('', '', 'height=400,width=600');
+  win.document.write(`<pre>${content}</pre>`);
+  win.print();
+  win.close();
+}
+
+function fetchData() {
+  fetch('/patient-visits/all')
+    .then(res => res.json())
+    .then(data => {
+      allBookings = data;
+      renderTable(data);
+      updateStats(data);
+    });
+}
+
+function updateStats(data) {
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const weekStart = new Date(now.setDate(now.getDate() - now.getDay())).toISOString().slice(0, 10);
+  const month = new Date().toISOString().slice(0, 7);
+
+  const todayCount = data.filter(b => b.date === today).length;
+  const weekCount = data.filter(b => b.date >= weekStart).length;
+  const monthCount = data.filter(b => b.date.startsWith(month)).length;
+
+  document.getElementById("today-count").textContent = todayCount;
+  document.getElementById("week-count").textContent = weekCount;
+  document.getElementById("month-count").textContent = monthCount;
+}
+
+// البحث
+const searchInput = document.getElementById("search");
+searchInput.addEventListener("input", function () {
+  const term = this.value.trim();
+  const filtered = allBookings.filter(b =>
+    b.name.includes(term) || b.phone.includes(term)
+  );
+  renderTable(filtered);
+});
+
+// حفظ حجز جديد
+const form = document.getElementById("new-booking-form");
+form.addEventListener("submit", async function (e) {
+  e.preventDefault();
+  const booking = {
+    name: document.getElementById("name").value.trim(),
+    phone: document.getElementById("phone").value.trim(),
+    date: document.getElementById("date").value,
+    time: document.getElementById("time").value
+  };
+
+  try {
+    let response;
+
+    if (editingBooking) {
+      // تعديل حجز قديم
+      response = await fetch('/update-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old: editingBooking, updated: booking })
+      });
+    } else {
+      // إضافة حجز جديد
+      response = await fetch('/submit-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(booking)
+      });
+    }
+
+    const result = await response.json();
+    alert(result.message);
+
+    if (result.success) {
+      fetchData();
+      form.reset();
+      editingBooking = null;
+    }
+
+  } catch (error) {
+    console.error("حدث خطأ أثناء إرسال البيانات", error);
+    alert("حدث خطأ في الاتصال بالسيرفر");
+  }
+});
+
+
+
+fetchData();
+ const body = document.getElementById('body');
+  const toggleBtn = document.getElementById('toggle-dark-mode');
+fetchRevenue();
+
+  // تطبيق الوضع المحفوظ
+  const savedMode = localStorage.getItem("dark-mode");
+  if (savedMode === "true") {
+    body.classList.add("dark-mode");
+    toggleBtn.textContent = "☀️ الوضع النهاري";
+  }
+
+  // عند الضغط على الزر
+  toggleBtn.addEventListener("click", () => {
+    body.classList.toggle("dark-mode");
+    const isDark = body.classList.contains("dark-mode");
+    toggleBtn.textContent = isDark ? "☀️ الوضع النهاري" : "🌙 الوضع الليلي";
+    localStorage.setItem("dark-mode", isDark);
+  });
+  function fetchRevenue() {
+  fetch("/total-revenue")
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById("total-revenue").textContent = data.total;
+      }
+    })
+    .catch(err => {
+      console.error("خطأ في جلب الإيرادات:", err);
+    });
+}
+function fetchRevenue() {
+  fetch("/stats/revenue")
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("total-revenue").textContent = data.revenue;
+    })
+    .catch(err => {
+      console.error("فشل في تحميل الإيرادات:", err);
+    });
+}
+
+</script>
+</body>
+</html>
