@@ -67,7 +67,8 @@
 
 <script>
 let allBookings = [];
-let editingBooking = null; // لحفظ بيانات الحجز الذي نعدّله
+let editingBooking = null;
+const serverURL = "https://3e13698f-ffcf-4213-81d5-8e9c9aeb5dbf-00-3iqirian9zu63.janeway.replit.dev";
 
 function renderTable(data) {
   const table = document.getElementById("bookings-table");
@@ -81,21 +82,18 @@ function renderTable(data) {
       <td>${booking.date}</td>
       <td>${booking.time}</td>
       <td>
-  <input type="text" class="form-control form-control-sm" value="${booking.note || ""}" 
-    onchange="saveNote('${booking.phone}', '${booking.date}', this.value)">
-</td>
-
+        <input type="text" class="form-control form-control-sm" value="${booking.note || ""}" 
+        onchange="saveNote('${booking.phone}', '${booking.date}', this.value)">
+      </td>
       <td><button class="btn btn-secondary btn-sm" onclick='copyToForm(${JSON.stringify(booking)})'>📥</button></td>
       <td><button class="btn btn-warning btn-sm" onclick='editBooking(${JSON.stringify(booking)})'>✏️</button></td>
       <td><button class="btn btn-danger btn-sm" onclick='deleteBooking("${booking.phone}", "${booking.date}")'>🗑️</button></td>
       <td><button class="btn btn-info btn-sm" onclick='printBooking(${JSON.stringify(booking)})'>🖨️</button></td>
       <td>
-  <a class="btn btn-success btn-sm" target="_blank"
-     href="https://wa.me/+2${booking.phone}?text=مرحبًا ${booking.name}، تم تأكيد حجزك بتاريخ ${booking.date} الساعة ${booking.time}. العنوان: مجمع العروبة الطبي - أمام مسجد خالد بن الوليد">
-     📱
-  </a>
-</td>
-
+        <a class="btn btn-success btn-sm" target="_blank"
+        href="https://wa.me/+2${booking.phone}?text=مرحبًا ${booking.name}، تم تأكيد حجزك بتاريخ ${booking.date} الساعة ${booking.time}. العنوان: مجمع العروبة الطبي - أمام مسجد خالد بن الوليد">
+        📱</a>
+      </td>
     `;
     table.appendChild(row);
   });
@@ -109,14 +107,13 @@ function copyToForm(booking) {
 }
 
 function editBooking(booking) {
-  editingBooking = booking; // حفظ بيانات الحجز القديم
-  copyToForm(booking);      // ملء الفورم بالبيانات
+  editingBooking = booking;
+  copyToForm(booking);
   document.querySelector('#toggle-dark-mode')?.scrollIntoView({ behavior: 'smooth' });
 }
 
-
 function deleteBooking(phone, date, callback) {
-  fetch('/delete-booking', {
+  fetch(`${serverURL}/delete-booking`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone, date })
@@ -131,21 +128,18 @@ function deleteBooking(phone, date, callback) {
     }
   });
 }
+
 function saveNote(phone, date, note) {
-  fetch('/update-note', {
+  fetch(`${serverURL}/update-note`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone, date, note })
   })
   .then(res => res.json())
   .then(data => {
-    if (!data.success) {
-      alert("❌ فشل في حفظ الملاحظة");
-    }
+    if (!data.success) alert("❌ فشل في حفظ الملاحظة");
   })
-  .catch(() => {
-    alert("❌ خطأ في الاتصال بالسيرفر");
-  });
+  .catch(() => alert("❌ خطأ في الاتصال بالسيرفر"));
 }
 
 function printBooking(booking) {
@@ -164,7 +158,7 @@ function printBooking(booking) {
 }
 
 function fetchData() {
-  fetch('/patient-visits/all')
+  fetch(`${serverURL}/patient-visits/all`)
     .then(res => res.json())
     .then(data => {
       allBookings = data;
@@ -188,7 +182,6 @@ function updateStats(data) {
   document.getElementById("month-count").textContent = monthCount;
 }
 
-// البحث
 const searchInput = document.getElementById("search");
 searchInput.addEventListener("input", function () {
   const term = this.value.trim();
@@ -198,7 +191,6 @@ searchInput.addEventListener("input", function () {
   renderTable(filtered);
 });
 
-// حفظ حجز جديد
 const form = document.getElementById("new-booking-form");
 form.addEventListener("submit", async function (e) {
   e.preventDefault();
@@ -211,17 +203,14 @@ form.addEventListener("submit", async function (e) {
 
   try {
     let response;
-
     if (editingBooking) {
-      // تعديل حجز قديم
-      response = await fetch('/update-booking', {
+      response = await fetch(`${serverURL}/update-booking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ old: editingBooking, updated: booking })
       });
     } else {
-      // إضافة حجز جديد
-      response = await fetch('/submit-booking', {
+      response = await fetch(`${serverURL}/submit-booking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(booking)
@@ -230,7 +219,6 @@ form.addEventListener("submit", async function (e) {
 
     const result = await response.json();
     alert(result.message);
-
     if (result.success) {
       fetchData();
       form.reset();
@@ -243,29 +231,8 @@ form.addEventListener("submit", async function (e) {
   }
 });
 
-
-
-fetchData();
- const body = document.getElementById('body');
-  const toggleBtn = document.getElementById('toggle-dark-mode');
-fetchRevenue();
-
-  // تطبيق الوضع المحفوظ
-  const savedMode = localStorage.getItem("dark-mode");
-  if (savedMode === "true") {
-    body.classList.add("dark-mode");
-    toggleBtn.textContent = "☀️ الوضع النهاري";
-  }
-
-  // عند الضغط على الزر
-  toggleBtn.addEventListener("click", () => {
-    body.classList.toggle("dark-mode");
-    const isDark = body.classList.contains("dark-mode");
-    toggleBtn.textContent = isDark ? "☀️ الوضع النهاري" : "🌙 الوضع الليلي";
-    localStorage.setItem("dark-mode", isDark);
-  });
-  function fetchRevenue() {
-  fetch("/total-revenue")
+function fetchRevenue() {
+  fetch(`${serverURL}/total-revenue`)
     .then(res => res.json())
     .then(data => {
       if (data.success) {
@@ -276,17 +243,26 @@ fetchRevenue();
       console.error("خطأ في جلب الإيرادات:", err);
     });
 }
-function fetchRevenue() {
-  fetch("/stats/revenue")
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById("total-revenue").textContent = data.revenue;
-    })
-    .catch(err => {
-      console.error("فشل في تحميل الإيرادات:", err);
-    });
+
+const body = document.getElementById('body');
+const toggleBtn = document.getElementById('toggle-dark-mode');
+
+const savedMode = localStorage.getItem("dark-mode");
+if (savedMode === "true") {
+  body.classList.add("dark-mode");
+  toggleBtn.textContent = "☀️ الوضع النهاري";
 }
 
+toggleBtn.addEventListener("click", () => {
+  body.classList.toggle("dark-mode");
+  const isDark = body.classList.contains("dark-mode");
+  toggleBtn.textContent = isDark ? "☀️ الوضع النهاري" : "🌙 الوضع الليلي";
+  localStorage.setItem("dark-mode", isDark);
+});
+
+fetchData();
+fetchRevenue();
 </script>
+
 </body>
 </html>

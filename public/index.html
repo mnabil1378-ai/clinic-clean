@@ -58,7 +58,8 @@
     const date = document.getElementById('date').value;
     const time = document.getElementById('time').value;
 
-    const response = await fetch('/submit-booking', {
+    const response = await fetch("https://3e13698f-ffcf-4213-81d5-8e9c9aeb5dbf-00-3iqirian9zu63.janeway.replit.dev/submit-booking", {
+
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, phone, date, time })
