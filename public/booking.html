@@ -64,6 +64,9 @@
       </div>
 
       <div class="price-note">💰 قيمة الكشف: 150 جنيه</div>
+<p class="text-muted" style="margin-top: 10px;">⏰ يتم فتح الموقع للحجز من الساعة 12 ظهرًا إلى الساعة 6 مساءً</p>
+
+
 
       <div class="text-center mt-3">
         <button type="submit" class="btn btn-submit">تأكيد الحجز</button>
@@ -74,31 +77,51 @@
   <script>
     const form = document.querySelector("form");
 
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
+   form.addEventListener("submit", function (e) {
+  e.preventDefault();
 
-      const name = document.getElementById("name").value;
-      const phone = document.getElementById("phone").value;
-      const date = document.getElementById("date").value;
-      const time = document.getElementById("time").value;
+  const name = document.getElementById("name").value;
+  const phone = document.getElementById("phone").value;
+  const date = document.getElementById("date").value;
+  const time = document.getElementById("time").value;
 
-      fetch("/submit-booking", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ name, phone, date, time })
-      })
-      .then(response => response.text())
-      .then(data => {
-        alert(data);
-        form.reset();
-      })
-      .catch(error => {
-        alert("حدث خطأ أثناء إرسال البيانات ❌");
-        console.error(error);
-      });
-    });
+  fetch("/submit-booking", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ name, phone, date, time })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // ✅ رسالة التأكيد
+      const msg = `📢 *تأكيد الحجز لدى عيادة د. هبة صلاح*
+👶 الاسم: ${name}
+📅 التاريخ: ${date}
+⏰ الوقت: ${time}
+💰 قيمة الكشف: 150 جنيه
+📍 العنوان: مجمع العروبة الطبي - أمام مسجد خالد بن الوليد
+📞 رقم التواصل: ${phone}
+
+✅ شكرًا لاختياركم عيادتنا 💚`;
+
+      // 🟢 فتح واتساب من رقم العيادة لرقم المريض
+      const whatsappLink = `https://wa.me/201142177576?text=${encodeURIComponent(msg)}`;
+      window.open(whatsappLink, '_blank');
+
+      alert("✅ تم تأكيد الحجز بنجاح");
+      form.reset();
+    } else {
+      alert(data.message || "❌ فشل في الحجز");
+    }
+  })
+  .catch(error => {
+    alert("حدث خطأ أثناء إرسال البيانات ❌");
+    console.error(error);
+  });
+});
+
   </script>
 </body>
 </html>

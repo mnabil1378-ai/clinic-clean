@@ -49,37 +49,46 @@
     </form>
   </div>
 
-  <script>
-    document.getElementById('bookingForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
+ <script>
+  document.getElementById('bookingForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
 
-      const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const date = document.getElementById('date').value;
-      const time = document.getElementById('time').value;
+    const name = document.getElementById('name').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const date = document.getElementById('date').value;
+    const time = document.getElementById('time').value;
 
-      const response = await fetch('/submit-booking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, date, time })
-      });
+    const response = await fetch('/submit-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone, date, time })
+    });
 
-      const result = await response.text();
-      alert(result);
+    const result = await response.json();
 
-      // 🟢 فتح WhatsApp برسالة تأكيد تلقائيًا
-      const msg = `📢 *تأكيد الحجز لدى العيادة*
+    if (result.success) {
+      alert("✅ تم تأكيد الحجز بنجاح");
+
+      // 🟢 رسالة واتساب من رقم العيادة الرسمي
+      const msg = `📢 *تأكيد الحجز لدى عيادة د. هبة صلاح*
 👶 الاسم: ${name}
 📅 التاريخ: ${date}
 ⏰ الوقت: ${time}
 💰 قيمة الكشف: 150 جنيه
-📍 العنوان: عيادة د. [اسم الطبيبة]
-📞 للاستفسار: ${phone}
+📍 العنوان: مجمع العروبة الطبي - أمام مسجد خالد بن الوليد
+📞 رقم التواصل: ${phone}
 
-📌 شكرًا لاختياركم عيادتنا 💚`;
-      const whatsappLink = `https://wa.me/2${phone}?text=${encodeURIComponent(msg)}`;
+✅ شكرًا لاختياركم عيادتنا 💚`;
+
+      const whatsappLink = `https://wa.me/201142177576?text=${encodeURIComponent(msg)}`;
       window.open(whatsappLink, '_blank');
-    });
-  </script>
+
+      document.getElementById('bookingForm').reset();
+    } else {
+      alert(result.message || "❌ فشل في تأكيد الحجز");
+    }
+  });
+</script>
+
 </body>
 </html>

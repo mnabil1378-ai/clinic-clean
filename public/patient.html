@@ -83,6 +83,8 @@ loadNotes(phone); // تحميل الملاحظات عند فتح الصفحة
           const date = lines.find(l => l.includes("📅 تاريخ الحجز")).split(":")[1].trim();
           const time = lines.find(l => l.includes("⏰ الوقت")).split(":")[1].trim();
           const price = lines.find(l => l.includes("💰 قيمة الكشف")).split(":")[1].trim();
+          <p class="text-muted mt-2">🕐 مواعيد الحجز من الساعة 12 ظهرًا حتى 6 مساءً</p>
+
           const noteLine = lines.find(l => l.includes("📝 ملاحظة الطبيب"));
           const note = noteLine ? noteLine.split(":")[1].trim() : '';
 

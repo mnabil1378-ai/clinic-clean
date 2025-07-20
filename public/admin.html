@@ -18,6 +18,8 @@
 <body id="body">
 
   <div class="container">
+    <h1 class="text-center mb-4">🏥 عيادة د. هبة صلاح</h1>
+
     <h2 class="mb-4">📋 لوحة تحكم حجوزات العيادة</h2>
 <button id="toggle-dark-mode" class="btn btn-dark mb-3">🌙 الوضع الليلي</button>
 
@@ -87,7 +89,13 @@ function renderTable(data) {
       <td><button class="btn btn-warning btn-sm" onclick='editBooking(${JSON.stringify(booking)})'>✏️</button></td>
       <td><button class="btn btn-danger btn-sm" onclick='deleteBooking("${booking.phone}", "${booking.date}")'>🗑️</button></td>
       <td><button class="btn btn-info btn-sm" onclick='printBooking(${JSON.stringify(booking)})'>🖨️</button></td>
-      <td><a class="btn btn-success btn-sm" target="_blank" href="https://wa.me/+2${booking.phone}?text=مرحبًا ${booking.name}، تم تأكيد حجزك بتاريخ ${booking.date} الساعة ${booking.time}">📱</a></td>
+      <td>
+  <a class="btn btn-success btn-sm" target="_blank"
+     href="https://wa.me/+2${booking.phone}?text=مرحبًا ${booking.name}، تم تأكيد حجزك بتاريخ ${booking.date} الساعة ${booking.time}. العنوان: مجمع العروبة الطبي - أمام مسجد خالد بن الوليد">
+     📱
+  </a>
+</td>
+
     `;
     table.appendChild(row);
   });
