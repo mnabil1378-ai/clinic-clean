@@ -1,9 +1,16 @@
 const express = require("express");
+const cors = require('cors');
 const session = require("express-session");
 const fs = require("fs");
 const path = require("path");
 
 const app = express();
+app.use(cors({
+  origin: 'https://drheba-clinic.vercel.app',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
 const PORT = 3000;
 
 const bookingsFile = path.join(__dirname, "data", "bookings.txt");
